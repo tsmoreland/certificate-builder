@@ -30,7 +30,7 @@ public sealed record SubjectNameBuilder(
     /// </summary>
     public string CommonName { get; init; } = CommonName is { Length : > 0 }
         ? CommonName
-        : throw new ArgumentException("Invalid common name, cannot be empty");
+        : throw new ArgumentException("Invalid common name, cannot be empty", nameof(CommonName));
 
     /// <summary>
     ///  Build Subject Name from provided parameters
