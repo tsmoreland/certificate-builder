@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net48;net472</TargetFrameworks>
+    <LangVersion>10</LangVersion>
+    <Nullable>enable</Nullable>
+
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageId>TSMoreland.Credentials</PackageId>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <Version>1.0.0.0</Version>
+    <Authors>Terry Moreland</Authors>
+    <PackageLicenseExpression></PackageLicenseExpression>
+    <Company />
+    <Product>Credentials Builder/Factory</Product>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageDescription>Common Infrastructure classes</PackageDescription>
+    <RepositoryUrl>https://github.com/tsmoreland/certificate-builder</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Description>Credential factory and builder method(s) as well as extensions to export to file</Description>
+    <Copyright>Copyright © 2020 Terry Moreland</Copyright>
+    <PackageProjectUrl>https://github.com/tsmoreland/certificate-builder</PackageProjectUrl>
+    <PackageTags>X509Certificate,X509Certificate2</PackageTags>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\..\LICENSE" Link="LICENSE" >
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="6.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>
