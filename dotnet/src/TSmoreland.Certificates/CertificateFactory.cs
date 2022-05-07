@@ -26,8 +26,10 @@ public static class CertificateFactory
     /// a signing request (in bytes) which can be used
     /// </summary>
     /// <param name="extendedSignedCertificateSettings">certificate settings used to construct the certificate</param>
-    public static (byte[] Request, X509Certificate2 Certificate) Build(ExtendedSignedCertificateSettings extendedSignedCertificateSettings)
+    public static SigningRequestCertificatePair Build(ExtendedSignedCertificateSettings extendedSignedCertificateSettings)
     {
+        ThrowIfArgumentNull(extendedSignedCertificateSettings, nameof(extendedSignedCertificateSettings));
+
         (
             string subjectName,
             int keySizeInBits,
@@ -39,7 +41,6 @@ public static class CertificateFactory
             X509KeyUsageFlags usageFlags,
             bool critical
         ) = extendedSignedCertificateSettings;
-
 
         using RSA rsa = RSA.Create(keySizeInBits);
 
@@ -74,7 +75,7 @@ public static class CertificateFactory
 
         X509Certificate2 selfSigned = request.CreateSelfSigned(notBefore ?? DateTime.UtcNow, notAfter ?? DateTime.UtcNow.AddYears(1));
 
-        return (requestBytes, selfSigned);
+        return new SigningRequestCertificatePair(requestBytes, selfSigned);
     }
 
     /// <summary>
@@ -85,6 +86,9 @@ public static class CertificateFactory
     /// <returns></returns>
     public static (X509Certificate2 Root, X509Certificate2 TimestampingCert)  Build(CertificateSettings settings, SignedCertificateSettings timestampSettings)
     {
+        ThrowIfArgumentNull(settings, nameof(settings));
+        ThrowIfArgumentNull(timestampSettings, nameof(timestampSettings));
+
         using RSA parentRsa = RSA.Create(settings.KeySizeInBits);
         using RSA timestampingRsa = RSA.Create(timestampSettings.KeySizeInBits);
 
@@ -112,6 +116,9 @@ public static class CertificateFactory
     /// </summary>
     public static X509Certificate2 BuildSignedCertificate(X509Certificate2 issuer, ExtendedSignedCertificateSettings settings)
     {
+        ThrowIfArgumentNull(issuer, nameof(issuer));
+        ThrowIfArgumentNull(settings, nameof(settings));
+
         (
             string subjectName,
             int keySizeInBits,
