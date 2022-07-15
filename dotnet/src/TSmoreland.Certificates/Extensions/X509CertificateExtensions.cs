@@ -60,9 +60,9 @@ public static class X509CertificateExtensions
 
         byte[]? privateKey = producers
             .Select(p => p.Invoke())
-            .Cast<dynamic?>()
+            .Cast<object?>()
             .Where(p => p is not null)
-            .Select(GetPrivateKeyOrThrow)
+            .Select(GetPrivateKeyBytesOrThrow)
             .FirstOrDefault();
 
         if (privateKey is null)
@@ -73,9 +73,16 @@ public static class X509CertificateExtensions
         string key = new (PemEncoding.Write("PRIVATE KEY", privateKey));
         return (pemCertificate, key);
 
-        static byte[] GetPrivateKeyOrThrow(dynamic? privateKey)
+        byte[] GetPrivateKeyBytesOrThrow(object? privateKeyObject)
         {
-            return privateKey!.ExportPkcs8PrivateKey();
+            return privateKeyObject switch
+            {
+                RSA rsa => rsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+                DSA dsa => dsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+                ECDsa ecdsa => ecdsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+                ECDiffieHellman ecDiffieHellman => ecDiffieHellman.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+                _ => throw  new NotSupportedException(),
+            };
         }
 
     }
