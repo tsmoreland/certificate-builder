@@ -60,7 +60,6 @@ public static class X509CertificateExtensions
 
         byte[]? privateKey = producers
             .Select(p => p.Invoke())
-            .Cast<object?>()
             .Where(p => p is not null)
             .Select(GetPrivateKeyBytesOrThrow)
             .FirstOrDefault();
@@ -70,7 +69,10 @@ public static class X509CertificateExtensions
             throw new CryptographicException("Private key not found");
         }
 
-        string key = new (PemEncoding.Write("PRIVATE KEY", privateKey));
+        string keyLabel = password is not null
+            ? "ENCRYPTED PRIVATE KEY"
+            : "PRIVATE KEY";
+        string key = new (PemEncoding.Write(keyLabel, privateKey));
         return (pemCertificate, key);
 
         byte[] GetPrivateKeyBytesOrThrow(object? privateKeyObject)

@@ -169,7 +169,7 @@ public static class CertificateFactory
 
     private static CertificateRequest BuildParentRequest(in RSA parentRsa, string subjectName)
     {
-        CertificateRequest parentRequest = new (
+        CertificateRequest parentRequest = new(
             subjectName,
             parentRsa,
             HashAlgorithmName.SHA256,
