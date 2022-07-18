@@ -105,17 +105,21 @@ public static class X509CertificateExtensions
         string pemCertificate = new(PemEncoding.Write("CERTIFICATE", rawData));
         string key;
         /*
+
+        string keyLabel = password is not null
+            ? "ENCRYPTED PRIVATE KEY"
+            : "PRIVATE KEY";
         if (certificate.GetRSAPrivateKey() is { } rsa)
         {
-            key = new string(PemEncoding.Write("PRIVATE KEY", rsa.ExportPkcs8PrivateKey()));
+            key = new string(PemEncoding.Write(keyLabel, rsa.ExportPkcs8PrivateKey()));
         }
         else if (certificate.GetECDsaPrivateKey() is { } ecdsaKey)
         {
-            key = new string(PemEncoding.Write("PRIVATE KEY", ecdsaKey.ExportPkcs8PrivateKey()));
+            key = new string(PemEncoding.Write(keyLabel, ecdsaKey.ExportPkcs8PrivateKey()));
         }
         else if (certificate.GetDSAPrivateKey() is { } dsaKey)
         {
-            key = new string(PemEncoding.Write("PRIVATE KEY", dsaKey.ExportPkcs8PrivateKey()));
+            key = new string(PemEncoding.Write(keyLabel, dsaKey.ExportPkcs8PrivateKey()));
         }
         else
         {
