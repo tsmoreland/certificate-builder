@@ -50,18 +50,18 @@ public static class X509CertificateExtensions
         byte[] rawData = certificate.GetRawCertData();
         string pemCertificate = new(PemEncoding.Write("CERTIFICATE", rawData));
 
-        IReadOnlyList<Func<object?>> producers = new List<Func<object?>>
+        IReadOnlyList<(Func<object?>, string?)> producers = new List<(Func<object?>, string?)>
         {
-            certificate.GetRSAPrivateKey,
-            certificate.GetDSAPrivateKey,
-            certificate.GetECDsaPrivateKey,
-            certificate.GetECDiffieHellmanPrivateKey,
+            (certificate.GetRSAPrivateKey, password),
+            (certificate.GetDSAPrivateKey, password),
+            (certificate.GetECDsaPrivateKey, password),
+            (certificate.GetECDiffieHellmanPrivateKey, password),
         };
 
         byte[]? privateKey = producers
-            .Select(p => p.Invoke())
-            .Where(p => p is not null)
-            .Select(GetPrivateKeyBytesOrThrow)
+            .Select(p => (p.Item1.Invoke(), p.Item2))
+            .Where(p => p.Item1 is not null)
+            .Select(p => GetPrivateKeyBytesOrThrow(p.Item1, p.Item2))
             .FirstOrDefault();
 
         if (privateKey is null)
@@ -73,9 +73,10 @@ public static class X509CertificateExtensions
             ? "ENCRYPTED PRIVATE KEY"
             : "PRIVATE KEY";
         string key = new (PemEncoding.Write(keyLabel, privateKey));
+
         return (pemCertificate, key);
 
-        byte[] GetPrivateKeyBytesOrThrow(object? privateKeyObject)
+        static byte[] GetPrivateKeyBytesOrThrow(object? privateKeyObject, string? password)
         {
             return privateKeyObject switch
             {
@@ -86,7 +87,6 @@ public static class X509CertificateExtensions
                 _ => throw  new NotSupportedException(),
             };
         }
-
     }
 #else
 
