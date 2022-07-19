@@ -22,6 +22,18 @@ namespace TSMoreland.Certificates.Extensions;
 /// </summary>
 public static class X509CertificateExtensions
 {
+    internal static class PemLabels
+    {
+        internal const string Pkcs8PrivateKey = "PRIVATE KEY";
+        internal const string EncryptedPkcs8PrivateKey = "ENCRYPTED PRIVATE KEY";
+        internal const string SpkiPublicKey = "PUBLIC KEY";
+        internal const string RsaPublicKey = "RSA PUBLIC KEY";
+        internal const string RsaPrivateKey = "RSA PRIVATE KEY";
+        internal const string EcPrivateKey = "EC PRIVATE KEY";
+        internal const string X509Certificate = "CERTIFICATE";
+        internal const string Pkcs7Certificate = "PKCS7";
+    }
+
     /// <summary>
     /// convert <paramref name="certificate"/> to PFX format stored in a byte array
     /// </summary>
@@ -35,7 +47,7 @@ public static class X509CertificateExtensions
             : certificate.Export(X509ContentType.Pfx);
     }
 
-#if NET6_0_OR_GREATER
+#if NET7_0_OR_GREATER
     /// <summary>
     /// Exports the file to PEM
     /// </summary>
@@ -48,7 +60,63 @@ public static class X509CertificateExtensions
     public static (string certificate, string key) ToPemEncodedCertificateKeyPair(this X509Certificate2 certificate, string? password)
     {
         byte[] rawData = certificate.GetRawCertData();
-        string pemCertificate = new(PemEncoding.Write("CERTIFICATE", rawData));
+        string pemCertificate = certificate.ExportCertificatePem();
+
+
+        IReadOnlyList<(Func<object?>, string?)> producers = new List<(Func<object?>, string?)>
+        {
+            (certificate.GetRSAPrivateKey, password),
+            (certificate.GetDSAPrivateKey, password),
+            (certificate.GetECDsaPrivateKey, password),
+            (certificate.GetECDiffieHellmanPrivateKey, password),
+        };
+
+
+        string? privateKey = producers
+            .Select(p => (p.Item1.Invoke(), p.Item2))
+            .Where(p => p.Item1 is not null)
+            .Select(p => GetPrivateKeyBytesOrThrow(p.Item1, p.Item2))
+            .FirstOrDefault();
+
+        if (privateKey is null)
+        {
+            throw new CryptographicException("Private key not found");
+        }
+
+        return (pemCertificate, privateKey);
+
+        static string GetPrivateKeyBytesOrThrow(object? privateKeyObject, string? password)
+        {
+            PbeParameters parameters = new(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100);
+            return privateKeyObject switch
+            {
+                RSA rsa when password is not null => rsa.ExportEncryptedPkcs8PrivateKeyPem(password, parameters),
+                DSA dsa when password is not null => dsa.ExportEncryptedPkcs8PrivateKeyPem(password, parameters),
+                ECDsa ecdsa when password is not null => ecdsa.ExportEncryptedPkcs8PrivateKeyPem(password, parameters),
+                ECDiffieHellman ecDiffieHellman when password is not null => ecDiffieHellman.ExportEncryptedPkcs8PrivateKeyPem(password, parameters),
+
+                RSA rsa when password is null => rsa.ExportPkcs8PrivateKeyPem(),
+                DSA dsa when password is null => dsa.ExportPkcs8PrivateKeyPem(),
+                ECDsa ecdsa when password is null => ecdsa.ExportPkcs8PrivateKeyPem(),
+                ECDiffieHellman ecDiffieHellman when password is null => ecDiffieHellman.ExportPkcs8PrivateKeyPem(),
+                _ => throw  new NotSupportedException(),
+            };
+        }
+    }
+#elif NET6_0
+    /// <summary>
+    /// Exports the file to PEM
+    /// </summary>
+    /// <param name="certificate">the certificate to export</param>
+    /// <param name="password">optional password, ignored if <see langword="null"/> or empty.</param>
+    /// <returns>a pair of strings representing the PEM encoded certifcate and key</returns>
+    /// <exception cref="CryptographicException">
+    /// if the algorithm of <paramref name="certificate"/> is unknown
+    /// </exception>
+    public static (string certificate, string key) ToPemEncodedCertificateKeyPair(this X509Certificate2 certificate, string? password)
+    {
+        byte[] rawData = certificate.GetRawCertData();
+        string pemCertificate = new(PemEncoding.Write(PemLabels.X509Certificate, rawData));
 
         IReadOnlyList<(Func<object?>, string?)> producers = new List<(Func<object?>, string?)>
         {
@@ -70,8 +138,8 @@ public static class X509CertificateExtensions
         }
 
         string keyLabel = password is not null
-            ? "ENCRYPTED PRIVATE KEY"
-            : "PRIVATE KEY";
+            ? PemLabels.EncryptedPkcs8PrivateKey
+            : PemLabels.Pkcs8PrivateKey;
         string key = new (PemEncoding.Write(keyLabel, privateKey));
 
         return (pemCertificate, key);
@@ -80,10 +148,15 @@ public static class X509CertificateExtensions
         {
             return privateKeyObject switch
             {
-                RSA rsa => rsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
-                DSA dsa => dsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
-                ECDsa ecdsa => ecdsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
-                ECDiffieHellman ecDiffieHellman => ecDiffieHellman.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+                RSA rsa when password is not null =>  rsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+                DSA dsa when password is not null => dsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+                ECDsa ecdsa when password is not null => ecdsa.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+                ECDiffieHellman ecDiffieHellman when password is not null => ecDiffieHellman.ExportEncryptedPkcs8PrivateKey(password, new PbeParameters(PbeEncryptionAlgorithm.Aes256Cbc, HashAlgorithmName.SHA256, 100)),
+
+                RSA rsa when password is null =>  rsa.ExportPkcs8PrivateKey(),
+                DSA dsa when password is null => dsa.ExportPkcs8PrivateKey(),
+                ECDsa ecdsa when password is null => ecdsa.ExportPkcs8PrivateKey(),
+                ECDiffieHellman ecDiffieHellman when password is null => ecDiffieHellman.ExportPkcs8PrivateKey(),
                 _ => throw  new NotSupportedException(),
             };
         }
@@ -104,11 +177,16 @@ public static class X509CertificateExtensions
         byte[] rawData = certificate.GetRawCertData();
         string pemCertificate = new(PemEncoding.Write("CERTIFICATE", rawData));
         string key;
-        /*
 
         string keyLabel = password is not null
-            ? "ENCRYPTED PRIVATE KEY"
-            : "PRIVATE KEY";
+            ? PemLabels.EncryptedPkcs8PrivateKey
+            : PemLabels.Pkcs8PrivateKey;
+
+        if (certificate.GetRSAPrivateKey() is { } rsa)
+        {
+        }
+
+        /*
         if (certificate.GetRSAPrivateKey() is { } rsa)
         {
             key = new string(PemEncoding.Write(keyLabel, rsa.ExportPkcs8PrivateKey()));
@@ -132,6 +210,7 @@ public static class X509CertificateExtensions
     }
 #endif
 
+
     /// <summary>
     /// Convert <paramref name="certificate"/> to byte array in <see cref="X509ContentType.Cert"/> format
     /// </summary>
@@ -144,64 +223,6 @@ public static class X509CertificateExtensions
             ? certificate.Export(X509ContentType.Cert, password)
             : certificate.Export(X509ContentType.Cert);
     }
-
-#if NET6_0_OR_GREATER
-
-    /// <summary>
-    /// Gets the public key string representation displaying algorithm name and key size in bits or empty
-    /// if unable to obtain this information
-    /// </summary>
-    /// <param name="certificate">the certificate to get public key details of</param>
-    /// <returns>
-    /// string detailing the algorithm and key size in bits on success; otherwise <see cref="string.Empty"/>
-    /// </returns>
-    public static string GetPublicKeyTypeOrEmpty(this X509Certificate2 certificate)
-    {
-        IReadOnlyList<Func<object?>> producers = new List<Func<object?>>()
-        {
-            certificate.GetDSAPublicKey,
-            certificate.GetRSAPublicKey,
-            certificate.GetECDsaPublicKey,
-            certificate.GetECDiffieHellmanPublicKey,
-        };
-
-        string friendlyName = certificate.SignatureAlgorithm.FriendlyName ?? string.Empty;
-        if (friendlyName is not { Length: > 0 })
-        {
-            return string.Empty;
-        }
-
-        int? keySize = producers
-            .Select(producer => producer())
-            .Cast<dynamic?>()
-            .Where(publicKey => publicKey is not null)
-            .Select(TryGetKeySize)
-            .FirstOrDefault();
-
-        StringBuilder builder = new();
-        builder.Append(friendlyName);
-        if (keySize.HasValue)
-        {
-            builder.Append($" ({keySize} bits)");
-        }
-
-        return builder.ToString();
-
-        static int? TryGetKeySize(dynamic? value)
-        {
-            try
-            {
-                return value!.KeySize;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-    }
-
-#endif
-
 
     private static void ThrowIfArgumentsAreInvalid(string path, string filenameWithoutExtension)
     {
